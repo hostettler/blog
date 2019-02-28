@@ -10,6 +10,19 @@ This series of blog posts aims at helping students at the University of Geneva t
 Besides explaining the concepts and implementation details of micro-service architecture, we will as well discuss software development practices such as software 
 factories and innovative deployment options such as containers. All samples and a complete working application can be found [here on GitHub](https://github.com/hostettler/microservices.git)
 
+The following diagram represents the end state of our microservice architecture. From a business perspective, it delivers services around managing counterparties, financial instruments, valuating portfolio and finally providing some regulatory services.
+You do not need a deep financial knowledge, sufficient is to say that:
+- A counterparty is an individual or a company participating in a financial transaction. For more [details](https://www.investopedia.com/terms/c/counterparty.asp).
+- A financial instrument  is an asset that can be traded such as stocks, loans, and so on. For more [details](https://www.investopedia.com/terms/f/financialinstrument.asp).
+- Portfolio valuation is the action of evaluating the net value of a set of assets. For more [details](https://www.investopedia.com/terms/a/assetvaluation.asp).
+- Financial institutions must comply to a set of regulations such as delivering monthly report to state their financial health.
+{% include image.html url="/figures/micro-service-architecture.png" description="Network topology and high level component view of the micro-service architecture" %}
+Besides, these "business" services, the architecture delivers a set of non-functional services such as:
+- A (reverse) proxy that shields the user from knowing the ugly details of the network topology. It also protects the backend by establishing a clear front vs back network separation. Furthermore, it exposes the static resources and finally, it provides TLS termination.
+- An API-Gateway that is providing load-balancing and SSO to the micro-services
+- A Central logging mechanism to deal with the distributed nature of the architecture
+- A Message broker but to increase service decoupling and scalability
+
 # Pre-requisites
 
 {% include info.html content="This series of blog post leverages a lot of different technologies. Please take the time to install everything properly. It will save time later on." %}
@@ -30,8 +43,8 @@ On top of that you need to have:
 - Some basic understanding of OS (including bash scripting) and networking (DNS, TCP, HTTP)
 - a great deal of patience and coffee
 
-## Getting everything to run
-First thing first, let's checkout the code and compile everything
+## Getting the backend components to run
+First thing first, let's checkout the code and compile everything. Before you start complaining, yes this section is tedious but we have the environment set up before diving into the wonderful world of microservices.
 Let's clone the code from [GitHub](https://github.com/hostettler/microservices.git). 
 
 {% highlight bash %}
@@ -138,7 +151,7 @@ This message shows that your installation appears to be working correctly.
 
 So the docker daemon is up and running. Let's create the docker images for the micro-services.
 {% highlight bash %}
-mvn install -Pdocker
+mvn install -Ppackage-docker-image
 {% endhighlight %}
 {% include console.html content="
 INFO] ------------------------------------------------------------------------
@@ -163,104 +176,114 @@ All the docker images for the micro-services have been created. Let's double che
 $ docker image ls | grep unige
 {% endhighlight %}
 {% include console.html content="
-unige/regulatory-service                 latest              d19aed8e7179        About a minute ago   761MB
-unige/valuation-service                  latest              38d95425c608        2 minutes ago        795MB
-unige/instrument-service                 latest              cbd3898a097b        2 minutes ago        795MB
-unige/counterparty-service               latest              e58b75e7fc43        3 minutes ago        762MB
+unige/regulatory-service       latest    5859668ecfb1        12 seconds ago       778MB
+unige/valuation-service        latest    93516633b7b3        48 seconds ago       814MB
+unige/instrument-service       latest    b1bded92050c        About a minute ago   814MB
+unige/counterparty-service     latest    1789c8543673        2 minutes ago        780MB
+unige/web-sso                  latest    2176f1175742        31 hours ago         109MB
+unige/api-gateway              latest    b355613b0bbd        32 hours ago         371MB
 " %}
+So at this point, we have docker images for the microservices, the api-gateway and the web-sso.
 
 {% include success.html content="You now have Docker images for your microservices" %}
 
-We have a hostsname, no let's generate the SSL certificates so that we can encrypt the data in transit. This step is optional as you can reuse the dummy certificates in the source directory.
-
-
-
-We want the application to be accessible by a the following name ```financial-app.com```. To that end we need the docker host ip address to be resolved to this hostname and vice-versa.
-First, we must identify the docker host ip address. On windows, run the command ```ipconfig```. On Linux, run the command ```ifconfig```. Look for an adapter called DockerNAT (or something similar).
+Let's start a docker container with the counterparty micro-service and let's map the port ``8080`` of the container to the port ``10080`` of the host.
 {% highlight bash %}
-$ ipconfig
+$  docker run --name myCounterpartyService -p 10080:8080 unige/counterparty-service:latest
 {% endhighlight %}
 {% include console.html content="
-Windows IP Configuration
-....
-Ethernet adapter vEthernet (DockerNAT) 2:
+2019-02-26 22:28:06,527 INFO  [org.jboss.as.server] (main) WFLYSRV0010: Deployed \"counterparty-service-0.2.0-SNAPSHOT.war\" (runtime-name : \"counterparty-service-0.2.0-SNAPSHOT.war\")
+2019-02-26 22:28:06,569 INFO  [org.wildfly.swarm] (main) THORN99999: Thorntail is Ready
+" %}
+{% include success.html content="open a browser and navigate to http://localhost:10080/counterparies It should display a long list of counterparties." %}
+This demonstrates that a web services is listening on port ``10080`` of ``localhost``. More specifically, we started a container with the image of the counterparty microservice. The port ``8080`` is mapped to port ``10080`` so that we can test it.
+Furthermore, we named the container `` myCounterpartyService``.
 
-   Connection-specific DNS Suffix  . :
-   Link-local IPv6 Address . . . . . : fe80::9d3f:55b9:4504:323f%19
-   IPv4 Address. . . . . . . . . . . : 192.168.240.1
-   Subnet Mask . . . . . . . . . . . : 255.255.255.0
-   Default Gateway . . . . . . . . . :
-" %}   
-
-
-So the ip-address is ```192.168.240.1```, let's add it to the hosts file. On Windows that file is located at ```C:\Windows\System32\drivers\etc``` and on Linux at ```/etc/hosts```
-
+In another console, we can run a ``docker ps`` command to list running containers.
 {% highlight bash %}
-$ cat C:\Windows\System32\drivers\etc
+docker ps
+{% endhighlight %}
+{% include console.html content='
+CONTAINER ID        IMAGE                               COMMAND                  CREATED             STATUS              PORTS                     NAMES
+dfb9acf07d79        unige/counterparty-service:latest   "/bin/sh -c \'java -D…"   42 seconds ago      Up 40 seconds       0.0.0.0:10080->8080/tcp   myCounterpartyService
+' %}
+So there is one running container name ``myCounterpartyService`` that listen on port ``10080`` of ``localhost``.
+
+Let's test it by connecting to ``http://localhost:10080/counterparties/724500J4K3Q60O9QLF45`` either using a browser or the ``curl`` command line. ``counterparties`` is the context name of the service and ``724500J4K3Q60O9QLF45``is the id of particular counterparty we want the details on.
+{% highlight bash %}
+curl -X GET http://localhost:10080/counterparties/724500J4K3Q60O9QLF45
+{% endhighlight %}
+{% include console.html content='
+{"lei":"724500J4K3Q60O9QLF45","name":"Ton Smit Onroerend Goed B.V.","legalAddress":{"firstAddressLine":"Van Teylingenweg 126","city":"Kamerik","region":"","country":"NL","postalCode":"3471GG"},"registration":{"registrationAuthorityID":"RA000463","registrationAuthorityEntityID":"52431649","jurisdiction":"NL","legalFormCode":"54M6","category":"","registrationDate":1545264000000,"lastUpdated":1545264000000,"registrationStatus":"ISSUED","nextRenewalDate":1576800000000},"status":"ACTIVE"}
+' %}
+
+We can stop the service as follow:
+{% highlight bash %}
+docker stop myCounterpartyService
+{% endhighlight %}
+
+And check that nothing is running anymore:
+{% highlight bash %}
+docker ps
 {% endhighlight %}
 {% include console.html content="
-192.168.240.1 host.docker.internal
-192.168.240.1 gateway.docker.internal
-192.168.240.1 financial-app.com
-" %}   
+CONTAINER ID        IMAGE                  COMMAND          CREATED     STATUS       PORTS          NAMES
+" %}
 
-
-We have a hostsname, no let's generate the SSL certificates so that we can encrypt the data in transit. This step is optional as you can reuse the dummy certificates in the source directory.
+So far we only ran one service, to run all the microservices (plus the message broker) we will compose the images by using ``docker-compose``.
 {% highlight bash %}
-$ cd web-sso-docker
-$ cd certs
-$ openssl req -new -newkey rsa:4096 -days 365 -nodes -x509 -subj "/C=CH/ST=Geneva/L=Geneva/O=Dis/CN=financial-app.com" -keyout financial-app.com.key -out financial-app.com.crt
+cd docker-compose/
+docker-compose -f docker-compose-microservices.yml up
 {% endhighlight %}
-{% include console.html content="
-Generating a RSA private key
-.......................................................++++
-......++++
-writing new private key to 'financial-app.com.key'
------
-" %}   
+{% include console.html content='
+instrument-service    | 2019-02-28 07:55:54,602 INFO  [org.apache.kafka.clients.consumer.internals.AbstractCoordinator] (EE-ManagedExecutorService-default-Thread-1) [Consumer clientId=consumer-1, groupId=pinfo-microservices] Successfully joined group with generation 14
+instrument-service    | 2019-02-28 07:55:54,606 INFO  [org.apache.kafka.clients.consumer.internals.ConsumerCoordinator] (EE-ManagedExecutorService-default-Thread-1) [Consumer clientId=consumer-1, groupId=pinfo-microservices] Setting newly assigned partitions [instrumentsReq-0]
+valuation-service     | 2019-02-28 07:55:54,604 INFO  [org.apache.kafka.clients.consumer.internals.AbstractCoordinator] (EE-ManagedExecutorService-default-Thread-1) [Consumer clientId=consumer-1, groupId=pinfo-microservices] Successfully joined group with generation 14
+valuation-service     | 2019-02-28 07:55:54,611 INFO  [org.apache.kafka.clients.consumer.internals.ConsumerCoordinator] (EE-ManagedExecutorService-default-Thread-1) [Consumer clientId=consumer-1, groupId=pinfo-microservices] Setting newly assigned partitions [instruments-0]
+' %}
 
+In another console, check the running containers
+{% highlight bash %}
+docker ps
+{% endhighlight %}
+{% include console.html content=' 
+CONTAINER ID        IMAGE                             COMMAND                  CREATED             STATUS              PORTS
+    NAMES
+f7af748fe9ae        unige/valuation-service:latest    "/bin/sh -c \'java -D…"   3 minutes ago       Up 3 minutes        0.0.0.0:12080->8080/tcp
+    valuation-service
+aea66ab35500        unige/instrument-service:latest   "/bin/sh -c \'java -D…"   3 minutes ago       Up 3 minutes        0.0.0.0:11080->8080/tcp
+    instrument-service
+2df3d6a8d6aa        confluentinc/cp-kafka:5.1.0       "/etc/confluent/dock…"   33 hours ago        Up 4 minutes        0.0.0.0:9092->9092/tcp
+    kafka
+f197de9c79fe        zookeeper:3.4.9                   "/docker-entrypoint.…"   33 hours ago        Up 4 minutes        2888/tcp, 0.0.0.0:2181->2181/tcp, 3888/tcp   zookeeper
+' %}
 
-No, let's compile the UI
+No we can test the microservices. Let's check again that we can query counterparties.
 {% highlight bash %}
-$ cd web-ui
-$ node --version
+curl -X GET http://localhost:10080/counterparties/724500J4K3Q60O9QLF45
 {% endhighlight %}
-{% include console.html content="
-6.5.0
-" %}   
+{% include console.html content='
+{"lei":"724500J4K3Q60O9QLF45","name":"Ton Smit Onroerend Goed B.V.","legalAddress":{"firstAddressLine":"Van Teylingenweg 126","city":"Kamerik","region":"","country":"NL","postalCode":"3471GG"},"registration":{"registrationAuthorityID":"RA000463","registrationAuthorityEntityID":"52431649","jurisdiction":"NL","legalFormCode":"54M6","category":"","registrationDate":1545264000000,"lastUpdated":1545264000000,"registrationStatus":"ISSUED","nextRenewalDate":1576800000000},"status":"ACTIVE"}
+' %}
+Then let's get a specific instrument
 {% highlight bash %}
-$ npm --version
+curl -X GET http://localhost:11080/instrument/1
 {% endhighlight %}
-{% include console.html content="
-10.15.0
-" %}   
+{% include console.html content='
+{"id":1,"brokerLei":"254900LAW6SKNVPBBN21","counterpartyLei":"969500CHL179N00GX059","originalCurrency":"EUR","amountInOriginalCurrency":539926.20,"dealDate":-61630035780000,"valueDate":-61630035780000,"instrumentType":"B","isin":"BE7261065565","quantity":5445,"maturityDate":1577837340000}
+' %}
+Next, we will propagate all the instruments to the message broker for the valuation service to read them and compute the actual valuation.
 {% highlight bash %}
-$ npm install
+curl -X POST http://localhost:11080/instrument/propagateAllInstruments
 {% endhighlight %}
-{% include console.html content="
-...
-audited 31887 packages in 68.922s
-" %}   
+This is then actual result of the valuation of the portfolio.
+{% highlight bash %}
+curl -X GET http://localhost:12080/valuation?currency=USD
+{% endhighlight %}
+{% include console.html content='
+{"breakdownByInstrumentType":{"STOCK":376127254.270,"LOAN":317483580.00,"BOND":468433784.120,"DEPOSIT":71056222.00,"WARRANT":4847202.120},"breakdownByCurrency":{"CHF":70073308.00,"SGD":66540948.00,"EUR":913601713.74,"GBP":102726326.00,"USD":85005746.77},"reportingCurrency":"USD","currentValue":1237948042.510,"percentile95":0.0,"percentile99":0.0}
+' %}
 
-{% highlight bash %}
-$ npm build
-{% endhighlight %}
-{% include console.html content="
- 69% building modules 1280/1296 modules 16 active ...components\footer\footer.component.scssDEPRECATION WARNING on line 1, column 8 of 
-Including .css files with @import is non-standard behaviour which will be removed in future versions of LibSass.
-Use a custom importer to maintain this behaviour. Check your implementations documentation on how to create a custom importer.
-
-Date: 2019-02-21T09:13:40.912Z
-Hash: e3a111b6560428e93784
-Time: 76066ms
-chunk {app-pages-pages-module} app-pages-pages-module.js, app-pages-pages-module.js.map (app-pages-pages-module) 3.16 MB  [rendered]
-chunk {main} main.js, main.js.map (main) 1.92 MB [initial] [rendered]
-chunk {polyfills} polyfills.js, polyfills.js.map (polyfills) 492 kB [initial] [rendered]
-chunk {runtime} runtime.js, runtime.js.map (runtime) 8.84 kB [entry] [rendered]
-chunk {scripts} scripts.js, scripts.js.map (scripts) 1.32 MB  [rendered]
-chunk {styles} styles.js, styles.js.map (styles) 3.99 MB [initial] [rendered]
-chunk {vendor} vendor.js, vendor.js.map (vendor) 7.17 MB [initial] [rendered]
-" %}   
-{% include success.html content="You just compiled the UI based on Angular 7.0" %}
+{% include success.html content="Congrats, you just got all the microservies and the message broker running." %}
 
 # Bibliography
