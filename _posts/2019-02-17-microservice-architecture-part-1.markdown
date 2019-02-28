@@ -289,7 +289,7 @@ curl -X GET http://localhost:12080/valuation?currency=USD
 {% include success.html content="Congrats, you just got all the microservies and the message broker running." %}
 
 # Bibliography
-[1] N. Poulton, (2017) Docker Deep Dive
-[2] Turnbull, J. (2014). The Docker Book: Containerization is the new virtualization. 
-[3] Mauro Vocale, Luigi Fugaro (2018). Hands-On Cloud-Native Microservices with Jakarta EE
-[4] Raghuram Bharathan, (2015). Apache Maven Cookbook
+- [1] N. Poulton, (2017) Docker Deep Dive
+- [2] Turnbull, J. (2014). The Docker Book: Containerization is the new virtualization. 
+- [3] Mauro Vocale, Luigi Fugaro (2018). Hands-On Cloud-Native Microservices with Jakarta EE
+- [4] Raghuram Bharathan, (2015). Apache Maven Cookbook
