@@ -23,6 +23,8 @@ Besides, these "business" services, the architecture delivers a set of non-funct
 - A Central logging mechanism to deal with the distributed nature of the architecture
 - A Message broker but to increase service decoupling and scalability
 
+From a technology perspective, we will implement Java microservice using JEE8 and its microprofile. More specifically we will use Thorntail. Then we will package it as Docker container using Maven as build tool.
+
 # Pre-requisites
 
 {% include info.html content="This series of blog post leverages a lot of different technologies. Please take the time to install everything properly. It will save time later on." %}
@@ -287,3 +289,7 @@ curl -X GET http://localhost:12080/valuation?currency=USD
 {% include success.html content="Congrats, you just got all the microservies and the message broker running." %}
 
 # Bibliography
+[1] N. Poulton, (2017) Docker Deep Dive
+[2] Turnbull, J. (2014). The Docker Book: Containerization is the new virtualization. 
+[3] Mauro Vocale, Luigi Fugaro (2018). Hands-On Cloud-Native Microservices with Jakarta EE
+[4] Raghuram Bharathan, (2015). Apache Maven Cookbook
