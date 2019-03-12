@@ -1,16 +1,19 @@
 ---
 layout: post
-title: "Microservice Architecture - Part 1"
+title: "Microservice Architecture - Part 2 (SSO, Logging, and all that)"
 date: 2019-02-17T22:51:20+01:00
 published: false
 ---
 
-
+In part 1, we discussed how to compile and deploy the microservices. Remember that the microservices are only a part of the microservice architecture. By its very nature, microservice architecture are distributed and that comes with a lot of benefits and some constraints.
+One of these constraint is that all the non-functional features such as security, logging, testability and so on, have to take distribution into account.
 
 ## Getting the backend components to run
 
-We want the application to be accessible by a the following name ```financial-app.com```. To that end we need the docker host ip address to be resolved to this hostname and vice-versa.
-First, we must identify the docker host ip address. On windows, run the command ```ipconfig```. On Linux, run the command ```ifconfig```. Look for an adapter called DockerNAT (or something similar).
+We want the application to be accessible by a the following name ```financial-app.com```. To that end we need the docker host ip address to be resolved to this hostname 
+and vice-versa. First, we must identify the docker host ip address. On windows, run the command ```ipconfig```. On Linux, run the command ```ifconfig```. 
+Look for an adapter called DockerNAT (or something similar).
+
 {% highlight bash %}
 $ ipconfig
 {% endhighlight %}
@@ -38,9 +41,8 @@ $ cat C:\Windows\System32\drivers\etc
 192.168.240.1 financial-app.com
 " %}   
 
-
-
-We have a hostsname, no let's generate the SSL certificates so that we can encrypt the data in transit. This step is optional as you can reuse the dummy certificates in the source directory.
+We have a hostsname, no let's generate the SSL certificates so that we can encrypt the data in transit. This step is optional as you can reuse the dummy certificates (for test purposes only)
+in the source directory. This will create a certificate for ``financial-app.com``.
 {% highlight bash %}
 $ cd web-sso-docker
 $ cd certs
@@ -53,9 +55,22 @@ Generating a RSA private key
 writing new private key to 'financial-app.com.key'
 -----
 " %}   
+If you wish to generate new certificates, you must regenerate the docker image ``unige/web-sso`` . To do so, run the appropriate maven command:
+{% highlight bash %}
+$ mvn clean install -Ppackage-docker-image
+{% endhighlight %}
+{% include console.html content="
+...
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  07:22 min
+[INFO] Finished at: 2019-03-06T21:18:13+01:00
+[INFO] --------------------------------------------------------------------
+" %} 
 
 
-No, let's compile the UI
+Now, let's compile the UI
 {% highlight bash %}
 $ cd web-ui
 $ node --version
@@ -97,6 +112,22 @@ chunk {styles} styles.js, styles.js.map (styles) 3.99 MB [initial] [rendered]
 chunk {vendor} vendor.js, vendor.js.map (vendor) 7.17 MB [initial] [rendered]
 " %}   
 {% include success.html content="You just compiled the UI based on Angular 7.0" %}
+
+At this point, we have all the necessary components. Let's put everything together by starting the different docker compositions. The order in which we start the compositions is 
+important as there are dependencies:
+- ``docker-compose-microservices.yml`` starts the Kafka message brocker and the microservices. This is what we start in part 1 to test that all the microservices are available.
+- ``docker-compose-log.yml`` starts an ElasticSearch, LogStash, and Kibana (ELK) suite alongside a Logspout compagnon container to take care of logs. This will ALL logs from all containers
+and concentrate them into the ElasticSearch using Logstash. Kibana can then be used to analyze the logs and extract intelligence.
+- ``docker-compose-api-gw.yml`` starts an api-gateway that will route the calls to the services and handle security by delegating authentication to a indendity manager called keycloak.
+- ``docker-compose-sso.yml`` 
+
+
+{% highlight bash %}
+$ docker-compose -f up
+{% endhighlight %}
+{% include console.html content="
+
+" %}   
 
 
 # Bibliography

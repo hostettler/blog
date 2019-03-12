@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Microservice Architecture - Part 1"
+title: "Microservice Architecture - Part 1 (A running microservice architecture)"
 date: 2019-02-17T22:51:20+01:00
 ---
 
@@ -18,12 +18,19 @@ You do not need a deep financial knowledge, sufficient is to say that:
 - Financial institutions must comply to a set of regulations such as delivering monthly report to state their financial health.
 {% include image.html url="/figures/micro-service-architecture.png" description="Network topology and high level component view of the micro-service architecture" %}
 Besides, these "business" services, the architecture delivers a set of non-functional services such as:
-- A (reverse) proxy that shields the user from knowing the ugly details of the network topology. It also protects the backend by establishing a clear front vs back network separation. Furthermore, it exposes the static resources and finally, it provides TLS termination.
-- An API-Gateway that is providing load-balancing and SSO to the micro-services
-- A Central logging mechanism to deal with the distributed nature of the architecture
-- A Message broker but to increase service decoupling and scalability
+- A Central logging mechanism to deal with the distributed nature of the architecture. We will use a [Logspout](https://github.com/gliderlabs/logspout) companion container that will send the logs from all the containers to a concentrator called [Logstash](https://www.elastic.co) that will in turn 
+send to database optimized for search called [ElasticSearch](https://www.elastic.co). Finally, [Kibana](https://www.elastic.co) is used to vizualize and analyze the logs.
+- A Message broker but to increase service decoupling and scalability. [Kafka](https://kafka.apache.org/) in this case.
+- An API-Gateway that is providing routing, load-balancing and SSO to the micro-services by integrating an indentity manager called [Keycloack](https://www.keycloak.org/). We will use [Kong](https://konghq.com/kong/) as an API-Gateway.
+The API-Gateway also shields the user from knowing the ugly details of the network topology. It also protects the backend by establishing a clear front vs back network separation. Furthermore, it exposes the static resources and finally, it provides TLS termination.
 
-From a technology perspective, we will implement Java microservice using JEE8 and its microprofile. More specifically we will use Thorntail. Then we will package it as Docker container using Maven as build tool.
+From a technology perspective, we will implement Java microservice using JEE8 and its microprofile. More specifically we will use [Thorntail](https://thorntail.io/). Then we will package it as [Docker](https://www.docker.com/) container using [Maven](https://maven.apache.org/) as build tool.
+
+This chapter describes step by step how to compile and deploy the microservices. 
+[Part 2](http://www.hostettler.net/2019/02/17/microservice-architecture-part-2.html) describes how to setup non-functional services such as SSO (Single Sign On) and API concentration and logging.
+Part 3 dives a bit deeper in what a microservice architecture actually is and its benefits and some drawbacks.
+Part 5 focuses on the software factory, putting everything together and testing the result. 
+Then Part 6 does the autopsy of a microservice with the associated design patterns.
 
 # Pre-requisites
 
@@ -38,12 +45,13 @@ To execute the samples you will need to install and to configure the following t
 - [Apache Maven](https://maven.apache.org/) for the automation.
 - a bash interpreter (on Windows you can rely on Git bash that is usually installed with Git)
 
-{% include warning.html content="because of a bug in one of the 3rd party software, please use Apache Maven 3.5.x instead of the latest 3.6.x. For more information pleaser refer to the Thorntail issue : https://github.com/thorntail/thorntail/pull/1195" %}
 
 On top of that you need to have:
 - A intermediate level in Java
 - Some basic understanding of OS (including bash scripting) and networking (DNS, TCP, HTTP)
 - a great deal of patience and coffee
+
+{% include info.html content="We will start a lot of containers, please grant at 6GB RAM and 6GB swap to your docker-machine" %}
 
 ## Getting the backend components to run
 First thing first, let's checkout the code and compile everything. Before you start complaining, yes this section is tedious but we have the environment set up before diving into the wonderful world of microservices.
