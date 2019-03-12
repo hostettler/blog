@@ -2,10 +2,11 @@
 layout: post
 title: "Microservice Architecture - Part 2 (SSO, Logging, and all that)"
 date: 2019-02-17T22:51:20+01:00
-published: false
+published: true
 ---
 
-In part 1, we discussed how to compile and deploy the microservices. Remember that the microservices are only a part of the microservice architecture. By its very nature, microservice architecture are distributed and that comes with a lot of benefits and some constraints.
+In [part 1](http://www.hostettler.net/2019/02/17/microservice-architecture-part-1.html), we discussed how to compile and deploy the microservices. Remember that the microservices themselves are only a part of the microservice architecture. 
+By its very nature, microservice architecture are distributed and that comes with a lot of benefits and some constraints.
 One of these constraint is that all the non-functional features such as security, logging, testability and so on, have to take distribution into account.
 
 ## Getting the backend components to run
@@ -41,20 +42,6 @@ $ cat C:\Windows\System32\drivers\etc
 192.168.240.1 financial-app.com
 " %}   
 
-We have a hostsname, no let's generate the SSL certificates so that we can encrypt the data in transit. This step is optional as you can reuse the dummy certificates (for test purposes only)
-in the source directory. This will create a certificate for ``financial-app.com``.
-{% highlight bash %}
-$ cd web-sso-docker
-$ cd certs
-$ openssl req -new -newkey rsa:4096 -days 365 -nodes -x509 -subj "/C=CH/ST=Geneva/L=Geneva/O=Dis/CN=financial-app.com" -keyout financial-app.com.key -out financial-app.com.crt
-{% endhighlight %}
-{% include console.html content="
-Generating a RSA private key
-.......................................................++++
-......++++
-writing new private key to 'financial-app.com.key'
------
-" %}   
 If you wish to generate new certificates, you must regenerate the docker image ``unige/web-sso`` . To do so, run the appropriate maven command:
 {% highlight bash %}
 $ mvn clean install -Ppackage-docker-image
@@ -115,19 +102,45 @@ chunk {vendor} vendor.js, vendor.js.map (vendor) 7.17 MB [initial] [rendered]
 
 At this point, we have all the necessary components. Let's put everything together by starting the different docker compositions. The order in which we start the compositions is 
 important as there are dependencies:
-- ``docker-compose-microservices.yml`` starts the Kafka message brocker and the microservices. This is what we start in part 1 to test that all the microservices are available.
-- ``docker-compose-log.yml`` starts an ElasticSearch, LogStash, and Kibana (ELK) suite alongside a Logspout compagnon container to take care of logs. This will ALL logs from all containers
+- ``docker-compose-microservices.yml`` starts the [Kafka](https://kafka.apache.org/) message brocker and the microservices. This is what we start in part 1 to test that all the microservices are available.
+- ``docker-compose-log.yml`` starts an [ElasticSearch, LogStash, and Kibana (ELK) suite](https://www.elastic.co/elk-stack) alongside a Logspout compagnon container to take care of logs. This will ALL logs from all containers
 and concentrate them into the ElasticSearch using Logstash. Kibana can then be used to analyze the logs and extract intelligence.
-- ``docker-compose-api-gw.yml`` starts an api-gateway that will route the calls to the services and handle security by delegating authentication to a indendity manager called keycloak.
-- ``docker-compose-sso.yml`` 
+- ``docker-compose-api-gw.yml`` starts an api-gateway that will route the calls to the services and handle security by delegating authentication to a indendity manager called [keyloak](https://www.keycloak.org/). It will also serve static content and serve as [TLS termination](https://en.wikipedia.org/wiki/TLS_termination_proxy).
 
 
 {% highlight bash %}
-$ docker-compose -f up
+$ cd  docker-compose
+$ docker-compose -f docker-compose-microservices.yml up &
+$ docker-compose -f docker-compose-log.yml up &
+$ docker-compose -f docker-compose-api-gw.yml up &
 {% endhighlight %}
 {% include console.html content="
-
+counterparty-service    | 2019-03-12 20:06:27,203 INFO  [stdout] (default task-1)         counterpar0_.registrationStatus as registr16_0_,
+counterparty-service    | 2019-03-12 20:06:27,203 INFO  [stdout] (default task-1)         counterpar0_.status as status17_0_
+counterparty-service    | 2019-03-12 20:06:27,203 INFO  [stdout] (default task-1)     from
+counterparty-service    | 2019-03-12 20:06:27,205 INFO  [stdout] (default task-1)         Counterparty counterpar0_
+kafka                   | [2019-03-12 20:10:15,744] INFO [GroupMetadataManager brokerId=1] Removed 0 expired offsets in 0 milliseconds. (kafka.coordinator.group.GroupMetadataManager)
+kafka                   | [2019-03-12 20:20:15,651] INFO [GroupMetadataManager brokerId=1] Removed 0 expired offsets in 0 milliseconds. (kafka.coordinator.group.GroupMetadataManager)
+kafka                   | [2019-03-12 20:30:15,652] INFO [GroupMetadataManager brokerId=1] Removed 0 expired offsets in 0 milliseconds. (kafka.coordinator.group.GroupMetadataManager)
+kafka                   | [2019-03-12 20:40:15,652] INFO [GroupMetadataManager brokerId=1] Removed 0 expired offsets in 0 milliseconds. (kafka.coordinator.group.GroupMetadataManager)
+kafka                   | [2019-03-12 20:50:15,654] INFO [GroupMetadataManager brokerId=1] Removed 0 expired offsets in 0 milliseconds. (kafka.coordinator.group.GroupMetadataManager)
+...
+kibana           | {\"type\":\"response\",\"@timestamp\":\"2019-03-12T20:53:56Z\",\"tags\":[],\"pid\":1,\"method\":\"get\",\"statusCode\":302,\"req\":{\"url\":\"/\",\"method\":\"get\",\"headers\":{\"user-agent\":\"curl/7.29.0\",\"host\":\"localhost:5601\",\"accept\":\"*/*\"},\"remoteAddress\":\"127.0.0.1\",\"userAgent\":\"127.0.0.1\"},\"res\":{\"statusCode\":302,\"responseTime\":3,\"contentLength\":9},\"message\":\"GET / 302 3ms - 9.0B\"}
+kibana           | {\"type\":\"response\",\"@timestamp\":\"2019-03-12T20:54:01Z\",\"tags\":[],\"pid\":1,\"method\":\"get\",\"statusCode\":302,\"req\":{\"url\":\"/\",\"method\":\"get\",\"headers\":{\"user-agent\":\"curl/7.29.0\",\"host\":\"localhost:5601\",\"accept\":\"*/*\"},\"remoteAddress\":\"127.0.0.1\",\"userAgent\":\"127.0.0.1\"},\"res\":{\"statusCode\":302,\"responseTime\":8,\"contentLength\":9},\"message\":\"GET / 302 8ms - 9.0B\"}
+....
+api-gateway         | 192.168.128.15 - - [12/Mar/2019:20:02:36 +0000] \"POST /plugins HTTP/1.1\" 409 213 \"-\" \"curl/7.29.0\"                                                                        
+api-gateway         | 2019/03/12 20:02:36 [notice] 41#0: *139 [lua] init.lua:393: insert(): ERROR: duplicate key value violates unique constraint \"plugins_cache_key_key\"                       \" 
+api-gateway         | Key (cache_key)=(plugins:oidc::::) already exists., client: 192.168.128.15, server: kong_admin, request: \"POST /plugins HTTP/1.1\", host: \"api-gateway:8001\"               
 " %}   
 
+If everything goes according to plan, you know have a working application ecosystem at ``https://financial-app.com`` 
+Point your browser to ``https://financial-app.com`` and you'll get an nice UI. 
+{% include image.html url="/figures/ui.png" description="Angular 7.0 UI to the financial-app" %}
 
-# Bibliography
+Point it to the counterparty microservice at ``https://financial-app.com/api/v1/counterparty``, the API-gateway will detect that you are not authenticated and will redirect you
+to the SSO platform to be asked for credentials. Enter ``user1/user1``
+{% include image.html url="/figures/login.png" description="Keycloack SSO login form" %}
+Once authenticated you get redirected to the orginal URL you requested (``https://financial-app.com/api/v1/counterparty``)
+{% include image.html url="/figures/counterparty-service.png" description="JSON result of the counterparty  microservice that returns all counterparties." %}
+
+{% include success.html content="Kudos, you just completed the installation of a complete microservice ecosystem locally on your machine." %}
