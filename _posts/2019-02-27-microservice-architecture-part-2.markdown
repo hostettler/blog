@@ -11,21 +11,6 @@ One of these constraint is that all the non-functional features such as security
 
 ## Getting the backend components to run
 
-If you wish to generate new certificates, you must regenerate the docker image ``unige/web-sso`` . To do so, run the appropriate maven command:
-{% highlight bash %}
-$ mvn clean install -Ppackage-docker-image
-{% endhighlight %}
-{% include console.html content="
-...
-[INFO] ------------------------------------------------------------------------
-[INFO] BUILD SUCCESS
-[INFO] ------------------------------------------------------------------------
-[INFO] Total time:  07:22 min
-[INFO] Finished at: 2019-03-06T21:18:13+01:00
-[INFO] --------------------------------------------------------------------
-" %} 
-
-
 Now, let's compile the UI
 {% highlight bash %}
 $ cd web-ui
