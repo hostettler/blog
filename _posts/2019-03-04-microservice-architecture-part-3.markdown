@@ -1,8 +1,8 @@
 ---
 layout: post
-title: "Microservice Architecture - Part 3 (Diving in microservices)"
+title: "Microservice Architecture - Part 3 (Diving into microservices)"
 date: 2019-03-04T22:51:20+01:00
-published: false
+published: true
 ---
 
 
@@ -33,15 +33,29 @@ Reusing the definition of services from SOA, a service has the [following proper
 
 These properties apply to microservices as well. The main differentce between SOA and MSA is in the granularity of the services and some opinionated implementation choices 
 
+
+
 ## Technologies
 Microservices also leverage new technologies to foster its core benefits.
+Containers
+#### Relation to cloud native technologies
 
 ## Pros and Cons
 
+## Some core properties
+#### Single Database per service
+#### Domain per service
+#### Service Granularity
+
 ## architecture patterns
 
-#### CQRS
-#### API Gateway
+#### Command Query Responsibility Segregation (CQRS)
+#### Message Bus
+#### API Composition / API Gateway
+
+## Cross-Cutting Concerns
+#### Security
+#### Logging / Tracability
 
 
 ## Bibliography

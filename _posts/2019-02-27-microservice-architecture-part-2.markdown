@@ -5,42 +5,11 @@ date: 2019-02-17T22:51:20+01:00
 published: true
 ---
 
-In [part 1](http://www.hostettler.net/2019/02/17/microservice-architecture-part-1.html), we discussed how to compile and deploy the microservices. Remember that the microservices themselves are only a part of the microservice architecture. 
+In [part 1](https://www.hostettler.net/2019/02/17/microservice-architecture-part-1.html), we discussed how to compile and deploy the microservices. Remember that the microservices themselves are only a part of the microservice architecture. 
 By its very nature, microservice architecture are distributed and that comes with a lot of benefits and some constraints.
 One of these constraint is that all the non-functional features such as security, logging, testability and so on, have to take distribution into account.
 
 ## Getting the backend components to run
-
-We want the application to be accessible by a the following name ```financial-app.com```. To that end we need the docker host ip address to be resolved to this hostname 
-and vice-versa. First, we must identify the docker host ip address. On windows, run the command ```ipconfig```. On Linux, run the command ```ifconfig```. 
-Look for an adapter called DockerNAT (or something similar).
-
-{% highlight bash %}
-$ ipconfig
-{% endhighlight %}
-{% include console.html content="
-Windows IP Configuration
-....
-Ethernet adapter vEthernet (DockerNAT) 2:
-
-   Connection-specific DNS Suffix  . :
-   Link-local IPv6 Address . . . . . : fe80::9d3f:55b9:4504:323f%19
-   IPv4 Address. . . . . . . . . . . : 192.168.240.1
-   Subnet Mask . . . . . . . . . . . : 255.255.255.0
-   Default Gateway . . . . . . . . . :
-" %}   
-
-
-So the ip-address is ```192.168.240.1```, let's add it to the hosts file. On Windows that file is located at ```C:\Windows\System32\drivers\etc``` and on Linux at ```/etc/hosts```
-
-{% highlight bash %}
-$ cat C:\Windows\System32\drivers\etc
-{% endhighlight %}
-{% include console.html content="
-192.168.240.1 host.docker.internal
-192.168.240.1 gateway.docker.internal
-192.168.240.1 financial-app.com
-" %}   
 
 If you wish to generate new certificates, you must regenerate the docker image ``unige/web-sso`` . To do so, run the appropriate maven command:
 {% highlight bash %}
@@ -133,14 +102,14 @@ api-gateway         | 2019/03/12 20:02:36 [notice] 41#0: *139 [lua] init.lua:393
 api-gateway         | Key (cache_key)=(plugins:oidc::::) already exists., client: 192.168.128.15, server: kong_admin, request: \"POST /plugins HTTP/1.1\", host: \"api-gateway:8001\"               
 " %}   
 
-If everything goes according to plan, you know have a working application ecosystem at ``https://financial-app.com`` 
-Point your browser to ``https://financial-app.com`` and you'll get an nice UI. 
+If everything goes according to plan, you know have a working application ecosystem at ``https://localhost`` 
+Point your browser to ``https://localhost`` and you'll get an nice UI. 
 {% include image.html url="/figures/ui.png" description="Angular 7.0 UI to the financial-app" %}
 
-Point it to the counterparty microservice at ``https://financial-app.com/api/v1/counterparty``, the API-gateway will detect that you are not authenticated and will redirect you
+Point it to the counterparty microservice at ``https://localhost/api/v1/counterparty``, the API-gateway will detect that you are not authenticated and will redirect you
 to the SSO platform to be asked for credentials. Enter ``user1/user1``
 {% include image.html url="/figures/login.png" description="Keycloack SSO login form" %}
-Once authenticated you get redirected to the orginal URL you requested (``https://financial-app.com/api/v1/counterparty``)
+Once authenticated you get redirected to the orginal URL you requested (``https://localhost/api/v1/counterparty``)
 {% include image.html url="/figures/counterparty-service.png" description="JSON result of the counterparty  microservice that returns all counterparties." %}
 
 {% include success.html content="Kudos, you just completed the installation of a complete microservice ecosystem locally on your machine." %}

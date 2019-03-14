@@ -27,7 +27,7 @@ The API-Gateway also shields the user from knowing the ugly details of the netwo
 From a technology perspective, we will implement Java microservice using JEE8 and its microprofile. More specifically we will use [Thorntail](https://thorntail.io/). Then we will package it as [Docker](https://www.docker.com/) container using [Maven](https://maven.apache.org/) as build tool.
 
 This chapter describes step by step how to compile and deploy the microservices. 
-[Part 2](http://www.hostettler.net/2019/02/17/microservice-architecture-part-2.html) describes how to setup non-functional services such as SSO (Single Sign On) and API concentration and logging.
+[Part 2](https://www.hostettler.net/2019/02/17/microservice-architecture-part-2.html) describes how to setup non-functional services such as SSO (Single Sign On) and API concentration and logging.
 Part 3 dives a bit deeper in what a microservice architecture actually is and its benefits and some drawbacks.
 Part 5 focuses on the software factory, putting everything together and testing the result. 
 Then Part 6 does the autopsy of a microservice with the associated design patterns.
