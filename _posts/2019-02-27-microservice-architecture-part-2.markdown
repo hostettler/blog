@@ -98,3 +98,125 @@ Once authenticated you get redirected to the orginal URL you requested (``https:
 {% include image.html url="/figures/counterparty-service.png" description="JSON result of the counterparty  microservice that returns all counterparties." %}
 
 {% include success.html content="Kudos, you just completed the installation of a complete microservice ecosystem locally on your machine." %}
+
+## Dissecting the docker-composes
+As stated previously ``docker-compose`` composes several containers together to deliver a solution. For instance, by starting the database first and then whatever service that requires a database.
+Using [docker-compose](https://docs.docker.com/compose/) you set the same parameters, environment variables, volumes that you would when starting a container with the command line.
+
+From a general point of a docker-compose yaml file defines a series of services (e.g., database, microservice, web server) and then a series of "shared" services such as volumes, networks and so on.
+
+Let's take the example of the `` docker-compose-api-gw.yml``  file. 
+- First ``version "2.1"`` defines the version of the syntax. Then ``services`` defines a section with a series of services.
+- In the below example, the first service is called ``kong-database`` and is based on a postgres database version 10 as stated by ``image: postgres:10``. The name of the container (for instance what
+will appear if you do ``docker ps``) is ``kong-database``. The hostname will also be called ``kong-database``.
+- After that comes a section that describes the networks the container is participating into. This is very useful to isolate the containers from one another from a network perspective.
+- The ``environment`` section defines environment variables (similar to ``-e`` in the command line). 
+- The healthcheck section defines rules to state whether or not a container is ready for 
+and heathly. 
+- The ``kong-database`` example does not expose ports but it could so by defining a ``ports`` section that list the mapping of the ports of the container to the port of the host system. ``80:7070``  means
+the the port ``7070`` of the container is mapped to the port ``80`` (http) of the host system.
+- Finally the volumes section maps volumes from the host systems to directory in the container. This is very useful to save the state of the container (e.g., database files)
+or to put custom configurations in place.
+
+```
+version: "2.1"
+
+services:
+
+   kong-database:
+    image: postgres:10
+    container_name: kong-database
+    hostname: kong-database
+    networks:
+     - backend-network
+    environment:
+      POSTGRES_USER: kong
+      POSTGRES_PASSWORD: kong
+      POSTGRES_DB: kongdb
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "kong", "-d", "kongdb"]
+      interval: 30s
+      timeout: 30s
+      retries: 3
+    volumes:
+      - pgdata-kong:/var/lib/postgresql/data
+...
+```
+
+<br/>
+
+With that very quick introduction to ``docker-compose`` let's have a look at the services delivered by the three ``docker-compose`` files of the demo:
+
+#### ``docker-compose-log.yml``: Providing a logging infrastructure
+Microservice architecture are distributed by nature and therefore cross-cutting concerns such as logging must take into account and aggregate the logs of the different containers.
+Without that it would be difficult to follow a user request that goes accross many services to deliver the final value. 
+
+To implement it, we rely on the [logspout](https://github.com/gliderlabs/logspout) log router. Logspout primarly captures all logs of all the running containers and route them to
+a log concentrator. Logspout in itself does not do anything with the logs, it just routes them to something. In our case, that something is [Logstash](https://www.elastic.co/products/logstash).
+
+Logstash is part of the ELK stack and is a pipeline that concentrate, aggregate, filters and stashes them in a database, usually [elasticsearch](https://www.elastic.co/products/elasticsearch).
+Kibana depends on Elasticsearch and gets its configuration from a volumes shared from the host (``./elk-pipeline/``).
+For more details about the Logstash configuration, please refer to ``./elk-pipeline/logstash.conf``.
+
+[Elastic Search](https://www.elastic.co/products/elasticsearch) stores, indexes and searches large amount of data. Like Logstash it is distributed in nature.
+Elasticsearch is starting first in ``docker-compose-log.yml`` because other services such as Logstash and Kibana depends on it.
+Elasticsearch maps a host volume (``esdata1``) to its own data directory (``/usr/share/elasticsearch/data``). Thanks to that mapping, data are not lost when the container is stopped or if it crashes.
+
+The final part of the puzzle is [Kibana](https://www.elastic.co/products/kibana) which visualizes the data stored in Elasticsearch to do business intelligence on the logs. This is very 
+useful to get a clear and real time status of the solution. Kibana depends on Elasticsearch and exposes its interface to the port ``5601`` of the host.
+
+<br/>
+
+#### ``docker-compose-api-gw.yml`` : Prodiving api-gateway services 
+Microservice architecture are usually composed of a lot of services. Keeping track of these, providing and maintaining a clear API becomes very quickly challenging.
+Besides, the granularity of microservices often call to compose them to deliver added value or to compose the microservices API in client API that more adapted for consumption.
+Furthermore, we often want to secure some services. For instance, using [oauth2 protocol](https://oauth.net/2/) connected to an identity provider to offer Single Sign On (SSO) on the services.
+
+The API gateway that is used is called [Kong](https://konghq.com/solutions/gateway/) and it requires a database. The ``docker-compose-api-gw.yml`` describes the following services:
+
+``kong-database`` which is a postgress database version 10 that holds the API gateway configuration
+
+The api gateway itself ``api-gateway`` that is based on a docker image that we built previously ``unige/api-gateway``  when we ran ``mvn clean install -Ppackage-docker-image`` at the root of the project.
+To get more details on how the image has been built, look at the ``Dockerfile`` in the ``api-gateway/src/main/docker`` directory. The image is based on ``kong:1.1rc1-centos`` but it is customized in several ways:
+- There is an additional [plugin](https://github.com/nokia/kong-oidc) to support openid 
+- A customized ``docker-entrypoint.sh`` to start Kong as root so that we can attach it to ports ``80`` and ``443`` that are privileged.
+- A customer ``nginx`` template to enable serving static content (the UI).
+- A shell script called ``config-kong.sh`` that configures the API-gateway by defining the services and the routes to these services. By the way this file, is ran after the api-gateway is
+started and labelled as healthy by the container called ``api-gateway-init``.
+The first line defines a service called ``counterparty-service`` that will route the request to the microservice ``http://counterparty-service:8080/counterparties``. The servicer ``counterparty-service`` is the host name
+given by the microservice configuration. The second line creates a route in the API-gateway to the previous service. In that case ``/api/v1/counterparty``, please note that the api-gateway can
+take care of versioning. Finally, the last line configures the OpenId plugin to provide authentication by telling the plugin to use the ``api-gateway`` client of the ``apigw`` realm of the keycloak.
+
+```
+#Creates the services.
+curl -S -s -i -X POST --url http://api-gateway:8001/services --data "name=counterparty-service" --data "url=http://counterparty-service:8080/counterparties"
+...
+#Creates the routes
+curl -S -s -i -X POST  --url http://api-gateway:8001/services/counterparty-service/routes --data "paths[]=/api/v1/counterparty" 
+...
+#Enable the Open ID Plugin
+curl -S -s -i -X POST  --url http://api-gateway:8001/plugins --data "name=oidc" --data "config.client_id=api-gateway" --data "config.client_secret=798751a9-d274-4335-abf6-80611cd19ba1" --data "config.discovery=https%3A%2F%2Flocalhost%2Fauth%2Frealms%2Fapigw%2F.well-known%2Fopenid-configuration"
+```
+
+A database for Keycloak the SSO software called ``iam-db``
+
+The SSO service ``iam`` that is based on Keycloak v4.8.3. Please note that a complete configuration is loaded initially using ``master.realm.json``. This configuration creates the required
+realm, client and configuration to provide authentication to the api-gateway.
+
+<br/>
+
+#### ``docker-compose-microservices.yml`` : Micro-services and message brocker 
+Finally, the last of the composition are the microservices themselves. As you can see, most of the configuration is not required for the microservices themselves but for the infrastructure around it.
+All the services belong to the ``backend-network`` nertwork.
+
+First, it defines a [ZooKeeper](https://zookeeper.apache.org/) that provides distributed configuration management, naming and group services. Zookeeper maintains its state in two shared volumes that are respectively mapped
+to the  ``./target/zk-single-kafka-single/zoo1/data`` and ``./target/zk-single-kafka-single/zoo1/datalog`` directories of the host. Zookeeper is a mandatory component for the message broker.
+
+Second, it defines a Kafka container. [Kafka](https://kafka.apache.org/) is a robust and fast message broker that excels at exchanging messages in a distributed way. It has a dependency to Zookeeper
+and exposes its port ``9092`` to the same port on the host. It also saves its state on a mapped volume on the host.
+
+Then, the counterparty service is a actual microservice (Finally !!!) that exposes its port ``8080`` to the port ``10080`` of the host. This microservice is based on [Thorntail](https://thorntail.io/).
+
+The instrument service is special as it connects to the message broker (Kafka) to send messages that will be read later on by the valuation service.
+
+The other microservices : valuation-service and regulatory-service are more of the same.
