@@ -1,5 +1,6 @@
 ---
 layout: post
+comments: true
 title: "Microservice Architecture - Part 2 (SSO, Logging, and all that)"
 date: 2019-02-17T22:51:20+01:00
 published: true
@@ -8,22 +9,27 @@ published: true
 In [part 1](https://www.hostettler.net/2019/02/17/microservice-architecture-part-1.html), we discussed how to compile and deploy the microservices. Remember that the microservices themselves are only a part of the microservice architecture. 
 By its very nature, microservice architecture are distributed and that comes with a lot of benefits and some constraints.
 One of these constraint is that all the non-functional features such as security, logging, testability and so on, have to take distribution into account.
+Think of the microservice architecture as a city, where the microservice are people working in the city. In the city, you also need policemen, firefighters, teachers, healthcare providers to keep it up and running.
+The higher the number of people working in the private sector (a.k.a., microservices), the higher the need for non-operational people (a.k.a., utilities)
 
-## Getting the backend components to run
+## Compile the UI
+This sample microservice architecture does not focus much on the UI. It mainly serves the purpose of showing how to integrate
+it with the rest of the architecture. We will not dive into details. Sufficient is to say, that the example was built with [Angular 7.0](https://angular.io/)
+and the [ngx-admin dashboard](https://github.com/akveo/ngx-admin).
+In development, UI is compiled by  and [npm](https://www.npmjs.com/) running on top of [nodejs](https://nodejs.org/en/).
 
-Now, let's compile the UI
 {% highlight bash %}
 $ cd web-ui
 $ node --version
 {% endhighlight %}
 {% include console.html content="
-6.5.0
+10.15.0
 " %}   
 {% highlight bash %}
 $ npm --version
 {% endhighlight %}
 {% include console.html content="
-10.15.0
+6.5.0
 " %}   
 {% highlight bash %}
 $ npm install
@@ -34,10 +40,10 @@ audited 31887 packages in 68.922s
 " %}   
 
 {% highlight bash %}
-$ npm build
+$ npm run-script build
 {% endhighlight %}
 {% include console.html content="
- 69% building modules 1280/1296 modules 16 active ...components\footer\footer.component.scssDEPRECATION WARNING on line 1, column 8 of 
+69% building modules 1280/1296 modules 16 active ...components\footer\footer.component.scssDEPRECATION WARNING on line 1, column 8 of 
 Including .css files with @import is non-standard behaviour which will be removed in future versions of LibSass.
 Use a custom importer to maintain this behaviour. Check your implementations documentation on how to create a custom importer.
 
@@ -54,12 +60,15 @@ chunk {vendor} vendor.js, vendor.js.map (vendor) 7.17 MB [initial] [rendered]
 " %}   
 {% include success.html content="You just compiled the UI based on Angular 7.0" %}
 
+## Compose the microservices
+
 At this point, we have all the necessary components. Let's put everything together by starting the different docker compositions. The order in which we start the compositions is 
 important as there are dependencies:
-- ``docker-compose-microservices.yml`` starts the [Kafka](https://kafka.apache.org/) message brocker and the microservices. This is what we start in part 1 to test that all the microservices are available.
-- ``docker-compose-log.yml`` starts an [ElasticSearch, LogStash, and Kibana (ELK) suite](https://www.elastic.co/elk-stack) alongside a Logspout compagnon container to take care of logs. This will ALL logs from all containers
-and concentrate them into the ElasticSearch using Logstash. Kibana can then be used to analyze the logs and extract intelligence.
-- ``docker-compose-api-gw.yml`` starts an api-gateway that will route the calls to the services and handle security by delegating authentication to a indendity manager called [keyloak](https://www.keycloak.org/). It will also serve static content and serve as [TLS termination](https://en.wikipedia.org/wiki/TLS_termination_proxy).
+- ``docker-compose-microservices.yml`` starts the [Kafka](https://kafka.apache.org/) message brocker and the microservices. This is what we already tested in [part 1](https://www.hostettler.net/2019/02/17/microservice-architecture-part-1.html) to prove that all the microservices are available.
+- ``docker-compose-log.yml`` starts an [ElasticSearch, LogStash, and Kibana (ELK) suite](https://www.elastic.co/elk-stack) alongside a Logspout compagnon container to take care of logs. This aggregates **ALL** logs from all containers
+and concentrate them into the ElasticSearch using Logstash. Kibana can then be used to analyze the logs and extract some intelligence, raise alerts and so on.
+- ``docker-compose-api-gw.yml`` starts an api-gateway that routes the calls to the services and handle 
+security by delegating authentication to a identity manager called [keyloak](https://www.keycloak.org/). It also serves static content and as [TLS termination](https://en.wikipedia.org/wiki/TLS_termination_proxy).
 
 
 {% highlight bash %}
@@ -87,12 +96,12 @@ api-gateway         | 2019/03/12 20:02:36 [notice] 41#0: *139 [lua] init.lua:393
 api-gateway         | Key (cache_key)=(plugins:oidc::::) already exists., client: 192.168.128.15, server: kong_admin, request: \"POST /plugins HTTP/1.1\", host: \"api-gateway:8001\"               
 " %}   
 
-If everything goes according to plan, you know have a working application ecosystem at ``https://localhost`` 
+If everything goes according to plan, you now have a working application ecosystem at ``https://localhost`` 
 Point your browser to ``https://localhost`` and you'll get an nice UI. 
 {% include image.html url="/figures/ui.png" description="Angular 7.0 UI to the financial-app" %}
 
 Point it to the counterparty microservice at ``https://localhost/api/v1/counterparty``, the API-gateway will detect that you are not authenticated and will redirect you
-to the SSO platform to be asked for credentials. Enter ``user1/user1``
+to the SSO platform to enter for credentials. Enter ``user1/user1``
 {% include image.html url="/figures/login.png" description="Keycloack SSO login form" %}
 Once authenticated you get redirected to the orginal URL you requested (``https://localhost/api/v1/counterparty``)
 {% include image.html url="/figures/counterparty-service.png" description="JSON result of the counterparty  microservice that returns all counterparties." %}
@@ -100,25 +109,28 @@ Once authenticated you get redirected to the orginal URL you requested (``https:
 {% include success.html content="Kudos, you just completed the installation of a complete microservice ecosystem locally on your machine." %}
 
 ## Dissecting the docker-composes
-As stated previously ``docker-compose`` composes several containers together to deliver a solution. For instance, by starting the database first and then whatever service that requires a database.
-Using [docker-compose](https://docs.docker.com/compose/) you set the same parameters, environment variables, volumes that you would when starting a container with the command line.
+As stated previously ``docker-compose`` composes several containers together to deliver a solution. 
+For instance, by starting the database first and then whatever service that requires a database.
+Using [docker-compose](https://docs.docker.com/compose/) you set the same parameters, environment variables, 
+volumes that you would when starting a container with the command line.
 
-From a general point of a docker-compose yaml file defines a series of services (e.g., database, microservice, web server) and then a series of "shared" services such as volumes, networks and so on.
+From a general point of view, a docker-compose yaml file defines a series of services (e.g., database, microservice, web server) and then a series of "shared" services such as volumes, networks and so on.
 
 Let's take the example of the `` docker-compose-api-gw.yml``  file. 
 - First ``version "2.1"`` defines the version of the syntax. Then ``services`` defines a section with a series of services.
 - In the below example, the first service is called ``kong-database`` and is based on a postgres database version 10 as stated by ``image: postgres:10``. The name of the container (for instance what
-will appear if you do ``docker ps``) is ``kong-database``. The hostname will also be called ``kong-database``.
-- After that comes a section that describes the networks the container is participating into. This is very useful to isolate the containers from one another from a network perspective.
+will appear if you run ``docker ps``) is ``kong-database``. The hostname will also be called ``kong-database``.
+- After that, comes a section that describes the networks the container is participating into. This is very useful to isolate the containers from one another from a network perspective.
 - The ``environment`` section defines environment variables (similar to ``-e`` in the command line). 
-- The healthcheck section defines rules to state whether or not a container is ready for 
+- The healthcheck section defines rules to state whether or not a container is ready for prime time
 and heathly. 
 - The ``kong-database`` example does not expose ports but it could so by defining a ``ports`` section that list the mapping of the ports of the container to the port of the host system. ``80:7070``  means
 the the port ``7070`` of the container is mapped to the port ``80`` (http) of the host system.
-- Finally the volumes section maps volumes from the host systems to directory in the container. This is very useful to save the state of the container (e.g., database files)
+- Finally, the volumes section maps volumes from the host systems to directory in the container. This is very useful to save the state of the container (e.g., database files)
 or to put custom configurations in place.
 
-```
+
+{% highlight yaml %}
 version: "2.1"
 
 services:
@@ -141,14 +153,14 @@ services:
     volumes:
       - pgdata-kong:/var/lib/postgresql/data
 ...
-```
+{% endhighlight %}
 
 <br/>
 
 With that very quick introduction to ``docker-compose`` let's have a look at the services delivered by the three ``docker-compose`` files of the demo:
 
 #### ``docker-compose-log.yml``: Providing a logging infrastructure
-Microservice architecture are distributed by nature and therefore cross-cutting concerns such as logging must take into account and aggregate the logs of the different containers.
+Microservice architecture are distributed by nature and therefore cross-cutting concerns such as logging must take that aspect into account and aggregate the logs of the different containers.
 Without that it would be difficult to follow a user request that goes accross many services to deliver the final value. 
 
 To implement it, we rely on the [logspout](https://github.com/gliderlabs/logspout) log router. Logspout primarly captures all logs of all the running containers and route them to
@@ -158,7 +170,7 @@ Logstash is part of the ELK stack and is a pipeline that concentrate, aggregate,
 Kibana depends on Elasticsearch and gets its configuration from a volumes shared from the host (``./elk-pipeline/``).
 For more details about the Logstash configuration, please refer to ``./elk-pipeline/logstash.conf``.
 
-[Elastic Search](https://www.elastic.co/products/elasticsearch) stores, indexes and searches large amount of data. Like Logstash it is distributed in nature.
+[Elastic Search](https://www.elastic.co/products/elasticsearch) stores, indexes and searches large amount of data. Like Logstash, it is distributed in nature.
 Elasticsearch is starting first in ``docker-compose-log.yml`` because other services such as Logstash and Kibana depends on it.
 Elasticsearch maps a host volume (``esdata1``) to its own data directory (``/usr/share/elasticsearch/data``). Thanks to that mapping, data are not lost when the container is stopped or if it crashes.
 
@@ -169,10 +181,11 @@ useful to get a clear and real time status of the solution. Kibana depends on El
 
 #### ``docker-compose-api-gw.yml`` : Prodiving api-gateway services 
 Microservice architecture are usually composed of a lot of services. Keeping track of these, providing and maintaining a clear API becomes very quickly challenging.
-Besides, the granularity of microservices often call to compose them to deliver added value or to compose the microservices API in client API that more adapted for consumption.
+Besides, the granularity of microservices often call for a composition to deliver actual added value. Besides, different might have different needs. For instance, a mobile app might need a different API
+that a web app.
 Furthermore, we often want to secure some services. For instance, using [oauth2 protocol](https://oauth.net/2/) connected to an identity provider to offer Single Sign On (SSO) on the services.
 
-The API gateway that is used is called [Kong](https://konghq.com/solutions/gateway/) and it requires a database. The ``docker-compose-api-gw.yml`` describes the following services:
+In our case, the API gateway is called [Kong](https://konghq.com/solutions/gateway/) and it requires a database. The ``docker-compose-api-gw.yml`` describes the following services:
 
 ``kong-database`` which is a postgress database version 10 that holds the API gateway configuration
 
@@ -187,7 +200,7 @@ The first line defines a service called ``counterparty-service`` that will route
 given by the microservice configuration. The second line creates a route in the API-gateway to the previous service. In that case ``/api/v1/counterparty``, please note that the api-gateway can
 take care of versioning. Finally, the last line configures the OpenId plugin to provide authentication by telling the plugin to use the ``api-gateway`` client of the ``apigw`` realm of the keycloak.
 
-```
+{% highlight bash %}
 #Creates the services.
 curl -S -s -i -X POST --url http://api-gateway:8001/services --data "name=counterparty-service" --data "url=http://counterparty-service:8080/counterparties"
 ...
@@ -196,7 +209,7 @@ curl -S -s -i -X POST  --url http://api-gateway:8001/services/counterparty-servi
 ...
 #Enable the Open ID Plugin
 curl -S -s -i -X POST  --url http://api-gateway:8001/plugins --data "name=oidc" --data "config.client_id=api-gateway" --data "config.client_secret=798751a9-d274-4335-abf6-80611cd19ba1" --data "config.discovery=https%3A%2F%2Flocalhost%2Fauth%2Frealms%2Fapigw%2F.well-known%2Fopenid-configuration"
-```
+{% endhighlight %}
 
 A database for Keycloak the SSO software called ``iam-db``
 
@@ -220,3 +233,5 @@ Then, the counterparty service is a actual microservice (Finally !!!) that expos
 The instrument service is special as it connects to the message broker (Kafka) to send messages that will be read later on by the valuation service.
 
 The other microservices : valuation-service and regulatory-service are more of the same.
+
+{% include success.html content="Kudos, you completed the tour of the microservice sample. Next chapter dives into a bit of theory." %}
