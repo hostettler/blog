@@ -7,16 +7,16 @@ published: true
 ---
 
 In [part 1](https://www.hostettler.net/2019/02/17/microservice-architecture-part-1.html), we discussed how to compile and deploy the microservices. Remember that the microservices themselves are only a part of the microservice architecture. 
-By its very nature, microservice architecture are distributed and that comes with a lot of benefits and some constraints.
-One of these constraint is that all the non-functional features such as security, logging, testability and so on, have to take distribution into account.
+By its very nature, microservice architecture is distributed and that comes with a lot of benefits and some constraints.
+One of these constraints is that all the non-functional features such as security, logging, testability have to take distribution into account.
 Think of the microservice architecture as a city, where the microservice are people working in the city. In the city, you also need policemen, firefighters, teachers, healthcare providers to keep it up and running.
-The higher the number of people working in the private sector (a.k.a., microservices), the higher the need for non-operational people (a.k.a., utilities)
+The higher the number of people working in the private sector (a.k.a., microservices), the higher the need for non-operational people (a.k.a., utilities).
 
-## Compile the UI
+## Compiling the UI
 This sample microservice architecture does not focus much on the UI. It mainly serves the purpose of showing how to integrate
-it with the rest of the architecture. We will not dive into details. Sufficient is to say, that the example was built with [Angular 7.0](https://angular.io/)
+it with the rest of the architecture. We will not dive into details. Sufficient  to say, that the example was built with [Angular 7.0](https://angular.io/)
 and the [ngx-admin dashboard](https://github.com/akveo/ngx-admin).
-In development, UI is compiled by  and [npm](https://www.npmjs.com/) running on top of [nodejs](https://nodejs.org/en/).
+In development, the UI is compiled by [npm](https://www.npmjs.com/) running on top of [nodejs](https://nodejs.org/en/).
 
 {% highlight bash %}
 $ cd web-ui
@@ -60,15 +60,20 @@ chunk {vendor} vendor.js, vendor.js.map (vendor) 7.17 MB [initial] [rendered]
 " %}   
 {% include success.html content="You just compiled the UI based on Angular 7.0" %}
 
-## Compose the microservices
+## Composing the microservices
 
-At this point, we have all the necessary components. Let's put everything together by starting the different docker compositions. The order in which we start the compositions is 
+At this point, we have all the necessary components. Let's put everything together by starting the different Docker compositions. The order in which we start the compositions is 
 important as there are dependencies:
-- ``docker-compose-microservices.yml`` starts the [Kafka](https://kafka.apache.org/) message brocker and the microservices. This is what we already tested in [part 1](https://www.hostettler.net/2019/02/17/microservice-architecture-part-1.html) to prove that all the microservices are available.
-- ``docker-compose-log.yml`` starts an [ElasticSearch, LogStash, and Kibana (ELK) suite](https://www.elastic.co/elk-stack) alongside a Logspout compagnon container to take care of logs. This aggregates **ALL** logs from all containers
+- ``docker-compose-microservices.yml`` starts the [Kafka](https://kafka.apache.org/) message broker and the microservices. We already tested this in [part 1](https://www.hostettler.net/2019/02/17/microservice-architecture-part-1.html) to prove that all the microservices are available.
+- ``docker-compose-log.yml`` starts an [ElasticSearch, LogStash, and Kibana (ELK) suite](https://www.elastic.co/elk-stack) alongside a Logspout companion container to take care of logs. This aggregates **ALL** logs from all containers
 and concentrate them into the ElasticSearch using Logstash. Kibana can then be used to analyze the logs and extract some intelligence, raise alerts and so on.
 - ``docker-compose-api-gw.yml`` starts an api-gateway that routes the calls to the services and handle 
-security by delegating authentication to a identity manager called [keyloak](https://www.keycloak.org/). It also serves static content and as [TLS termination](https://en.wikipedia.org/wiki/TLS_termination_proxy).
+security by delegating authentication to an identity manager called [keyloak](https://www.keycloak.org/). It also serves static content and as [TLS termination](https://en.wikipedia.org/wiki/TLS_termination_proxy).
+
+
+{% include warning.html content="On Linux system you may get the following error message : max virtual memory areas vm.max_map_count [65530] is too low, increase to at least [262144]. If it is the case run the following command
+in a console : sysctl -w vm.max_map_count=262144" %}
+
 
 
 {% highlight bash %}
@@ -96,11 +101,11 @@ api-gateway         | 2019/03/12 20:02:36 [notice] 41#0: *139 [lua] init.lua:393
 api-gateway         | Key (cache_key)=(plugins:oidc::::) already exists., client: 192.168.128.15, server: kong_admin, request: \"POST /plugins HTTP/1.1\", host: \"api-gateway:8001\"               
 " %}   
 
-If everything goes according to plan, you now have a working application ecosystem at ``https://localhost`` 
+If everything went according to plan, you now have a working application ecosystem at ``https://localhost`` 
 Point your browser to ``https://localhost`` and you'll get an nice UI. 
 {% include image.html url="/figures/ui.png" description="Angular 7.0 UI to the financial-app" %}
 
-Point it to the counterparty microservice at ``https://localhost/api/v1/counterparty``, the API-gateway will detect that you are not authenticated and will redirect you
+By pointing it to the counterparty microservice at ``https://localhost/api/v1/counterparty``, the API-gateway will detect that you are not authenticated and will redirect you
 to the SSO platform to enter for credentials. Enter ``user1/user1``
 {% include image.html url="/figures/login.png" description="Keycloack SSO login form" %}
 Once authenticated you get redirected to the orginal URL you requested (``https://localhost/api/v1/counterparty``)
@@ -120,13 +125,13 @@ Let's take the example of the `` docker-compose-api-gw.yml``  file.
 - First ``version "2.1"`` defines the version of the syntax. Then ``services`` defines a section with a series of services.
 - In the below example, the first service is called ``kong-database`` and is based on a postgres database version 10 as stated by ``image: postgres:10``. The name of the container (for instance what
 will appear if you run ``docker ps``) is ``kong-database``. The hostname will also be called ``kong-database``.
-- After that, comes a section that describes the networks the container is participating into. This is very useful to isolate the containers from one another from a network perspective.
+- What follows, is a section that describes the networks the container is participating into. This is very useful to isolate the containers from one another from a network perspective.
 - The ``environment`` section defines environment variables (similar to ``-e`` in the command line). 
 - The healthcheck section defines rules to state whether or not a container is ready for prime time
 and heathly. 
-- The ``kong-database`` example does not expose ports but it could so by defining a ``ports`` section that list the mapping of the ports of the container to the port of the host system. ``80:7070``  means
-the the port ``7070`` of the container is mapped to the port ``80`` (http) of the host system.
-- Finally, the volumes section maps volumes from the host systems to directory in the container. This is very useful to save the state of the container (e.g., database files)
+- The ``kong-database`` example does not expose ports but it could do so by defining a ``ports`` section that list the mapping of the ports of the container to the port of the host system. ``80:7070``  means
+the  port ``7070`` of the container is mapped to the port ``80`` (http) of the host system.
+- Finally, the volumes section maps volumes from the host systems to the directory in the container. This is very useful to save the state of the container (e.g., database files)
 or to put custom configurations in place.
 
 
@@ -157,16 +162,16 @@ services:
 
 <br/>
 
-With that very quick introduction to ``docker-compose`` let's have a look at the services delivered by the three ``docker-compose`` files of the demo:
+After that very quick introduction to ``docker-compose`` let's have a look at the services delivered by the three ``docker-compose`` files of the demo:
 
 #### ``docker-compose-log.yml``: Providing a logging infrastructure
 Microservice architecture are distributed by nature and therefore cross-cutting concerns such as logging must take that aspect into account and aggregate the logs of the different containers.
-Without that it would be difficult to follow a user request that goes accross many services to deliver the final value. 
+Without that it would be difficult to follow a user request that goes across many services to deliver the final value. 
 
 To implement it, we rely on the [logspout](https://github.com/gliderlabs/logspout) log router. Logspout primarly captures all logs of all the running containers and route them to
 a log concentrator. Logspout in itself does not do anything with the logs, it just routes them to something. In our case, that something is [Logstash](https://www.elastic.co/products/logstash).
 
-Logstash is part of the ELK stack and is a pipeline that concentrate, aggregate, filters and stashes them in a database, usually [elasticsearch](https://www.elastic.co/products/elasticsearch).
+Logstash is part of the ELK stack and is a pipeline that concentrates, aggregates, filters and stashes them in a database, usually [elasticsearch](https://www.elastic.co/products/elasticsearch).
 Kibana depends on Elasticsearch and gets its configuration from a volumes shared from the host (``./elk-pipeline/``).
 For more details about the Logstash configuration, please refer to ``./elk-pipeline/logstash.conf``.
 
@@ -181,8 +186,8 @@ useful to get a clear and real time status of the solution. Kibana depends on El
 
 #### ``docker-compose-api-gw.yml`` : Prodiving api-gateway services 
 Microservice architecture are usually composed of a lot of services. Keeping track of these, providing and maintaining a clear API becomes very quickly challenging.
-Besides, the granularity of microservices often call for a composition to deliver actual added value. Besides, different might have different needs. For instance, a mobile app might need a different API
-that a web app.
+Besides, the granularity of microservices often call for a composition to deliver actual value add. Besides, different applications might have different needs. For instance, a mobile app might need a different API
+than a web app.
 Furthermore, we often want to secure some services. For instance, using [oauth2 protocol](https://oauth.net/2/) connected to an identity provider to offer Single Sign On (SSO) on the services.
 
 In our case, the API gateway is called [Kong](https://konghq.com/solutions/gateway/) and it requires a database. The ``docker-compose-api-gw.yml`` describes the following services:
@@ -218,7 +223,7 @@ realm, client and configuration to provide authentication to the api-gateway.
 
 <br/>
 
-#### ``docker-compose-microservices.yml`` : Micro-services and message brocker 
+#### ``docker-compose-microservices.yml`` : Micro-services and message broker 
 Finally, the last of the composition are the microservices themselves. As you can see, most of the configuration is not required for the microservices themselves but for the infrastructure around it.
 All the services belong to the ``backend-network`` nertwork.
 
