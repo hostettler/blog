@@ -40,7 +40,7 @@ The below figure presents a typical monolith architecture. Please note that,
 - cross-cutting concerns at shared and the monolith instance level
 - inter service (modules) communication is usually method calls (vs inter process communication)
 - scalability happens at the monolith level
-{% include image.html url="/figures/monolith.png" description="Monolith architecture" %}
+{% include image.html url="/figures/Monolith.png" description="Monolith architecture" %}
 
 Breaking the monolith apart in small pieces, enables to make architectural decision at that level. For instance, to choose the most appropriate programming language or technology
 for each task. That being said adding heterogeneity  and increasing the number of deployment units, 
@@ -71,7 +71,7 @@ Adding these influences to the mix, adds the following properties:
 
 The term microservice has been coined around 2012 [2][3]. People trace it back to a workshop in Venice in 2011 but I was not able to find the proceedings.
 
-{% include image.html url="/figures/microservices.png" description="Microservice architecture" %}
+{% include image.html url="/figures/microservices.PNG" description="Microservice architecture" %}
 
 ## Technologies
 Two main technologies are usually linked to microservices:
