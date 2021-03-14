@@ -308,6 +308,9 @@ curl -X GET http://localhost:10080/counterparties/724500J4K3Q60O9QLF45
 {% include console.html content='
 {"lei":"724500J4K3Q60O9QLF45","name":"Ton Smit Onroerend Goed B.V.","legalAddress":{"firstAddressLine":"Van Teylingenweg 126","city":"Kamerik","region":"","country":"NL","postalCode":"3471GG"},"registration":{"registrationAuthorityID":"RA000463","registrationAuthorityEntityID":"52431649","jurisdiction":"NL","legalFormCode":"54M6","category":"","registrationDate":1545264000000,"lastUpdated":1545264000000,"registrationStatus":"ISSUED","nextRenewalDate":1576800000000},"status":"ACTIVE"}
 ' %}
+
+{% include warning.html content="In case you get an empty resultset, check that the database has been create successfully. If necessary remove the existing volume. Run the following command : docker volume rm --force microservices_pgdata-cpty " %}
+
 Then let's get a specific instrument
 {% highlight bash %}
 curl -X GET http://localhost:11080/instrument/1
