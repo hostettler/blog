@@ -227,19 +227,19 @@ unige/api-gateway              latest    b355613b0bbd        32 hours ago       
 
 {% include success.html content="You now have Docker images for your microservices. At this point, we have Docker images for the microservices and for the api-gateway." %}
 
-Let's start a Docker container with the counterparty microservice and map the port ``8080`` of the container to the port ``10080`` of the host.
+Let's start a Docker container with the counterparty microservice and map the port ``28080`` of the container to the port ``10080`` of the host.
 In principle, this will start a Linux OS and then start the microservice as the first process (PID 1). This container provides all the service, you would
 expect from any Linux system such as network, security, and isolation.
 
 {% highlight bash %}
-$  docker run --name myCounterpartyService -p 10080:8080 unige/counterparty-service:latest
+$  docker run --name myCounterpartyService -p 10080:28080 unige/counterparty-service:latest
 {% endhighlight %}
 {% include console.html content="
 2019-02-26 22:28:06,527 INFO  [org.jboss.as.server] (main) WFLYSRV0010: Deployed \"counterparty-service-0.2.0-SNAPSHOT.war\" (runtime-name : \"counterparty-service-0.2.0-SNAPSHOT.war\")
 2019-02-26 22:28:06,569 INFO  [org.wildfly.swarm] (main) THORN99999: Thorntail is Ready
 " %}
 {% include success.html content="Open a browser and navigate to http://localhost:10080/counterparies It will display a long list of counterparties." %}
-This demonstrates that a web services is listening on port ``10080`` of ``localhost``. More specifically, we started a container with the image of the counterparty microservice. The port ``8080`` is mapped to port ``10080`` so that we can test it.
+This demonstrates that a web services is listening on port ``10080`` of ``localhost``. More specifically, we started a container with the image of the counterparty microservice. The port ``28080`` is mapped to port ``10080`` so that we can test it.
 Furthermore, we named the container `` myCounterpartyService``.
 
 As it is a fully running Linux system, you can connect to the container to inspect it. In another console, we can run a ``docker ps`` command to list running containers.
